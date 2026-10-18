@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.view.View
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -52,12 +53,27 @@ class MainActivity : AppCompatActivity() {
         loadCachedData()
     }
 
+    data class IntervalOption(val label: String, val minutes: Long)
+
+    private val intervalOptions = listOf(
+        IntervalOption("15 minutes (minimum)", 15L),
+        IntervalOption("30 minutes (recommended)", 30L),
+        IntervalOption("1 hour", 60L),
+        IntervalOption("2 hours", 120L),
+        IntervalOption("6 hours", 360L),
+        IntervalOption("12 hours", 720L),
+        IntervalOption("24 hours", 1440L)
+    )
+
     private fun setupUi() {
         // Restore saved API key
         val savedKey = prefs.getApiKey()
         if (savedKey.isNotBlank()) {
             binding.editApiKey.setText(savedKey)
         }
+
+        // Setup interval selector
+        setupIntervalDropdown()
 
         // Save API key button
         binding.btnSaveApiKey.setOnClickListener {
@@ -80,6 +96,34 @@ class MainActivity : AppCompatActivity() {
         // Swipe-to-refresh
         binding.swipeRefresh.setOnRefreshListener {
             fetchWeatherWithLocation()
+        }
+    }
+
+    private fun setupIntervalDropdown() {
+        val adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_dropdown_item_1line,
+            intervalOptions.map { it.label }
+        )
+        binding.dropdownInterval.setAdapter(adapter)
+
+        val currentMinutes = prefs.getRefreshIntervalMinutes()
+        val currentOption = intervalOptions.find { it.minutes == currentMinutes }
+            ?: intervalOptions[1] // Default to 30 min
+
+        binding.dropdownInterval.setText(currentOption.label, false)
+
+        binding.dropdownInterval.setOnItemClickListener { _, _, position, _ ->
+            val selected = intervalOptions[position]
+            prefs.setRefreshIntervalMinutes(selected.minutes)
+            Toast.makeText(
+                this,
+                getString(R.string.refresh_interval_updated, selected.label),
+                Toast.LENGTH_SHORT
+            ).show()
+            if (prefs.hasApiKey() && prefs.hasLocation()) {
+                schedulePeriodicSync()
+            }
         }
     }
 
@@ -214,19 +258,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun schedulePeriodicSync() {
+        val intervalMinutes = prefs.getRefreshIntervalMinutes()
+
         val constraints = Constraints.Builder()
             .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
 
         val syncRequest = PeriodicWorkRequestBuilder<WeatherSyncWorker>(
-            30, TimeUnit.MINUTES  // minimum interval for periodic work
+            intervalMinutes, TimeUnit.MINUTES
         )
             .setConstraints(constraints)
             .build()
 
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
             WeatherSyncWorker.WORK_NAME,
-            ExistingPeriodicWorkPolicy.KEEP,
+            ExistingPeriodicWorkPolicy.UPDATE,
             syncRequest
         )
     }

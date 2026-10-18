@@ -60,11 +60,23 @@ class PreferencesManager(context: Context) {
         prefs.edit().putString(KEY_WEATHER_DATA, gson.toJson(data)).apply()
     }
 
+    // ── Refresh Interval ──────────────────────────────────────────────────────
+
+    fun getRefreshIntervalMinutes(): Long {
+        return prefs.getLong(KEY_REFRESH_INTERVAL_MINUTES, DEFAULT_REFRESH_INTERVAL_MINUTES)
+    }
+
+    fun setRefreshIntervalMinutes(minutes: Long) {
+        prefs.edit().putLong(KEY_REFRESH_INTERVAL_MINUTES, minutes).apply()
+    }
+
     companion object {
         private const val PREFS_NAME = "glanceables_prefs"
         private const val KEY_API_KEY = "openweather_api_key"
         private const val KEY_LATITUDE = "last_latitude"
         private const val KEY_LONGITUDE = "last_longitude"
         private const val KEY_WEATHER_DATA = "cached_weather_data"
+        private const val KEY_REFRESH_INTERVAL_MINUTES = "refresh_interval_minutes"
+        const val DEFAULT_REFRESH_INTERVAL_MINUTES = 30L
     }
 }

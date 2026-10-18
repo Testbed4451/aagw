@@ -12,4 +12,10 @@
     <string name="temperature_label">TEMPERATURE</string>
     <string name="uv_index_label">UV INDEX</string>
     <string name="aqi_label">AIR QUALITY INDEX</string>
+
+    <!-- Refresh Interval -->
+    <string name="sync_settings_title">Background Sync Settings</string>
+    <string name="sync_settings_subtitle">Sets how often weather data is fetched and pushed to the watch complication.</string>
+    <string name="refresh_interval_label">Refresh Interval</string>
+    <string name="refresh_interval_updated">Refresh interval set to %s</string>
 </resources>
