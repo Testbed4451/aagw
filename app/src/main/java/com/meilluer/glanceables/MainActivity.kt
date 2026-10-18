@@ -2,10 +2,12 @@ package com.meilluer.glanceables
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -18,13 +20,17 @@ import androidx.work.WorkManager
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import com.meilluer.glanceables.data.TravelInfo
 import com.meilluer.glanceables.data.WeatherData
 import com.meilluer.glanceables.databinding.ActivityMainBinding
+import com.meilluer.glanceables.pdf.TravelPdfExtractor
 import com.meilluer.glanceables.repository.WeatherRepository
 import com.meilluer.glanceables.storage.PreferencesManager
 import com.meilluer.glanceables.sync.WearableDataSender
 import com.meilluer.glanceables.sync.WeatherSyncWorker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -36,6 +42,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: PreferencesManager
     private val repository = WeatherRepository()
     private lateinit var wearableSender: WearableDataSender
+    private lateinit var pdfExtractor: TravelPdfExtractor
+
+    private val pdfPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            processPdfUri(uri)
+        }
+    }
 
     companion object {
         private const val LOCATION_PERMISSION_REQUEST = 1001
@@ -48,9 +63,12 @@ class MainActivity : AppCompatActivity() {
 
         prefs = PreferencesManager(this)
         wearableSender = WearableDataSender(this)
+        pdfExtractor = TravelPdfExtractor(this)
 
         setupUi()
+        setupTravelUi()
         loadCachedData()
+        loadStoredTravelInfo()
     }
 
     data class IntervalOption(val label: String, val minutes: Long)
@@ -289,6 +307,128 @@ class MainActivity : AppCompatActivity() {
             } else {
                 Toast.makeText(this, "Location permission required for weather data", Toast.LENGTH_LONG).show()
             }
+        }
+    }
+
+    // ── Travel / PDF Extraction UI Handlers ───────────────────────────────────
+
+    private fun setupTravelUi() {
+        // Pick and extract PDF button
+        binding.btnExtractPdf.setOnClickListener {
+            pdfPickerLauncher.launch(arrayOf("application/pdf"))
+        }
+
+        // Save button
+        binding.btnSaveTravelInfo.setOnClickListener {
+            saveCurrentTravelInfo()
+        }
+
+        // Clear button
+        binding.btnClearTravelInfo.setOnClickListener {
+            clearTravelInfo()
+        }
+
+        // Push to watch button
+        binding.btnSendTravelToWatch.setOnClickListener {
+            pushTravelInfoToWatch()
+        }
+    }
+
+    private fun loadStoredTravelInfo() {
+        val travelInfo = prefs.getTravelInfo()
+        if (travelInfo.isNotEmpty()) {
+            displayTravelInfo(travelInfo)
+        }
+    }
+
+    private fun displayTravelInfo(info: TravelInfo) {
+        binding.editSeatNumber.setText(info.seatNumber)
+        binding.editBirthtype.setText(info.birthtype)
+        binding.editDateOfJourney.setText(info.dateOfJourney)
+        binding.editDepartureTime.setText(info.departureTime)
+        binding.editArrivalTime.setText(info.arrivalTime)
+        binding.editBoardingStation.setText(info.boardingStation)
+        binding.editDeboardingStation.setText(info.deboardingStation)
+    }
+
+    private fun processPdfUri(uri: Uri) {
+        binding.pdfProgressBar.visibility = View.VISIBLE
+        binding.btnExtractPdf.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                val travelInfo = withContext(Dispatchers.IO) {
+                    val text = pdfExtractor.extractTextFromUri(uri)
+                    pdfExtractor.parse(text)
+                }
+
+                if (travelInfo.isNotEmpty()) {
+                    displayTravelInfo(travelInfo)
+                    prefs.saveTravelInfo(travelInfo)
+                    wearableSender.sendTravelInfoToWatch(travelInfo)
+                    Toast.makeText(
+                        this@MainActivity,
+                        getString(R.string.travel_extracted_success),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Could not detect travel fields automatically. You can fill them in and click Save.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@MainActivity,
+                    getString(R.string.pdf_error, e.localizedMessage ?: "Unknown error"),
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                binding.pdfProgressBar.visibility = View.GONE
+                binding.btnExtractPdf.isEnabled = true
+            }
+        }
+    }
+
+    private fun getTravelInfoFromInputs(): TravelInfo {
+        return TravelInfo(
+            seatNumber = binding.editSeatNumber.text?.toString()?.trim().orEmpty(),
+            birthtype = binding.editBirthtype.text?.toString()?.trim().orEmpty(),
+            dateOfJourney = binding.editDateOfJourney.text?.toString()?.trim().orEmpty(),
+            departureTime = binding.editDepartureTime.text?.toString()?.trim().orEmpty(),
+            arrivalTime = binding.editArrivalTime.text?.toString()?.trim().orEmpty(),
+            boardingStation = binding.editBoardingStation.text?.toString()?.trim().orEmpty(),
+            deboardingStation = binding.editDeboardingStation.text?.toString()?.trim().orEmpty()
+        )
+    }
+
+    private fun saveCurrentTravelInfo() {
+        val info = getTravelInfoFromInputs()
+        prefs.saveTravelInfo(info)
+        Toast.makeText(this, getString(R.string.travel_saved_success), Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            wearableSender.sendTravelInfoToWatch(info)
+        }
+    }
+
+    private fun clearTravelInfo() {
+        prefs.clearTravelInfo()
+        binding.editSeatNumber.setText("")
+        binding.editBirthtype.setText("")
+        binding.editDateOfJourney.setText("")
+        binding.editDepartureTime.setText("")
+        binding.editArrivalTime.setText("")
+        binding.editBoardingStation.setText("")
+        binding.editDeboardingStation.setText("")
+        Toast.makeText(this, getString(R.string.travel_cleared), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun pushTravelInfoToWatch() {
+        val info = getTravelInfoFromInputs()
+        lifecycleScope.launch {
+            wearableSender.sendTravelInfoToWatch(info)
+            Toast.makeText(this@MainActivity, "Travel details sent to watch", Toast.LENGTH_SHORT).show()
         }
     }
 }

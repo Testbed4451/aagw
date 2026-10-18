@@ -297,6 +297,217 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Travel Information Card (PDF Extraction & Local Storage) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardTravelInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/travel_section_title"
+                        android:textAppearance="?attr/textAppearanceHeadline6"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/travel_section_subtitle"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        android:layout_marginBottom="12dp"
+                        android:textColor="?android:attr/textColorSecondary" />
+
+                    <!-- PDF Extract Button -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnExtractPdf"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_pick_pdf"
+                        android:layout_marginBottom="12dp"
+                        app:icon="@android:drawable/ic_menu_upload" />
+
+                    <!-- PDF Progress Indicator -->
+                    <com.google.android.material.progressindicator.LinearProgressIndicator
+                        android:id="@+id/pdfProgressBar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:indeterminate="true"
+                        android:visibility="gone" />
+
+                    <!-- Seat Number Input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/seatNumberLayout"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:hint="@string/seat_number_label">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editSeatNumber"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapCharacters"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Berth / Seat Type Input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/birthtypeLayout"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:hint="@string/birthtype_label">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editBirthtype"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapWords"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Date of Journey Input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/dateOfJourneyLayout"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:hint="@string/date_of_journey_label">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editDateOfJourney"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="text"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Times Row: Departure & Arrival -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:baselineAligned="false"
+                        android:layout_marginBottom="8dp">
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/departureTimeLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:hint="@string/departure_time_label">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/editDepartureTime"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/arrivalTimeLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:hint="@string/arrival_time_label">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/editArrivalTime"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:inputType="text"
+                                android:singleLine="true" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                    </LinearLayout>
+
+                    <!-- Boarding Station / Airport Code Input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/boardingStationLayout"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:hint="@string/boarding_station_label">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editBoardingStation"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapWords"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Deboarding Station / Airport Code Input -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/deboardingStationLayout"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:hint="@string/deboarding_station_label">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/editDeboardingStation"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapWords"
+                            android:singleLine="true" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Actions: Save, Push to Watch, Clear -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSaveTravelInfo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp"
+                        android:text="@string/btn_save_travel_info" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSendTravelToWatch"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            android:text="@string/btn_send_travel_to_watch" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnClearTravelInfo"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            style="@style/Widget.MaterialComponents.Button.TextButton"
+                            android:text="@string/btn_clear_travel_info" />
+                    </LinearLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
     </ScrollView>
 

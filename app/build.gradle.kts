@@ -49,7 +49,7 @@ android {
             )
         }
     }
-    
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
@@ -87,6 +87,9 @@ dependencies {
 
     // Location
     implementation(libs.play.services.location)
+
+    // PDF extraction
+    implementation(libs.pdfbox.android)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

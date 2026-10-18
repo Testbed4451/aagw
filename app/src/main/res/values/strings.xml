@@ -18,4 +18,24 @@
     <string name="sync_settings_subtitle">Sets how often weather data is fetched and pushed to the watch complication.</string>
     <string name="refresh_interval_label">Refresh Interval</string>
     <string name="refresh_interval_updated">Refresh interval set to %s</string>
+
+    <!-- Travel / PDF Extraction -->
+    <string name="travel_section_title">Travel Information (Glanceable)</string>
+    <string name="travel_section_subtitle">Extract ticket details from PDF (Train e-ticket, Flight boarding pass, Bus booking) and store them locally.</string>
+    <string name="btn_pick_pdf">Select &amp; Extract PDF</string>
+    <string name="btn_save_travel_info">Save Travel Info</string>
+    <string name="btn_clear_travel_info">Clear Stored Info</string>
+    <string name="btn_send_travel_to_watch">Push to Watch</string>
+    <string name="seat_number_label">Seat Number</string>
+    <string name="birthtype_label">Birth / Berth Type</string>
+    <string name="date_of_journey_label">Date of Journey</string>
+    <string name="departure_time_label">Departure Time</string>
+    <string name="arrival_time_label">Arrival Time</string>
+    <string name="boarding_station_label">Boarding Station / Airport Code</string>
+    <string name="deboarding_station_label">Deboarding Station / Airport Code</string>
+    <string name="travel_saved_success">Travel information saved locally</string>
+    <string name="travel_extracted_success">Extracted ticket details from PDF</string>
+    <string name="travel_cleared">Travel information cleared</string>
+    <string name="pdf_extracting">Extracting information from PDF…</string>
+    <string name="pdf_error">Could not extract information from PDF: %s</string>
 </resources>
