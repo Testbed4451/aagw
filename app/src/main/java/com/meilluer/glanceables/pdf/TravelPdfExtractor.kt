@@ -53,8 +53,7 @@ class TravelPdfExtractor(private val context: Context? = null) {
         val dateOfJourney = extractDateOfJourney(normalized)
         val departureTime = extractDepartureTime(normalized)
         val arrivalTime = extractArrivalTime(normalized)
-        val boardingStation = extractBoardingStation(normalized)
-        val deboardingStation = extractDeboardingStation(normalized)
+        val (boardingStation, deboardingStation) = extractStations(normalized)
 
         return TravelInfo(
             seatNumber = seatNumber,
@@ -70,13 +69,15 @@ class TravelPdfExtractor(private val context: Context? = null) {
     // ── 1. Seat Number ────────────────────────────────────────────────────────
 
     private fun extractSeatNumber(text: String): String {
-        // IRCTC pattern: Coach / Berth / Status, e.g. "B4 / 45", "B4-45", "B4, 45", "Coach: B4 Berth: 45"
+        // IRCTC pattern: Coach / Berth / Status, e.g. "CNF/B5/10/MIDDLE", "B4 / 45", "B4-45", "B4, 45"
         val irctcPatterns = listOf(
-            // "CNF / B4 / 45" or "CNF/B4/45/LB" or "B4/45/LB"
+            // "CNF / B5 / 10" or "CNF/B5/10/MIDDLE" or "CNF/B4/45/LB" or "B4/45/LB"
             Pattern.compile("""(?:CNF|RAC|WL)\s*[/,]\s*([A-Z0-9]+)\s*[/,]\s*([0-9]{1,3})""", Pattern.CASE_INSENSITIVE),
-            // "Coach\s*[:\s]*([A-Z0-9]+)[,\s]+(?:Berth|Seat)\s*[:\s#]*([0-9]{1,3})"
+            // "B5/10/MIDDLE" or "B4/45/LB" without CNF
+            Pattern.compile("""\b([A-Z][0-9]{1,2})\s*[/,]\s*([0-9]{1,3})\s*[/,]\s*(?:MIDDLE|LOWER|UPPER|SIDE|LB|MB|UB|SL|SU|SM)\b""", Pattern.CASE_INSENSITIVE),
+            // "Coach : B4 Berth: 45"
             Pattern.compile("""Coach\s*[:\s-]*([A-Z0-9]+)[\s,/|]+(?:Berth|Seat)\s*(?:No\.?|Number)?\s*[:\s#-]*([0-9]{1,3})""", Pattern.CASE_INSENSITIVE),
-            // "Berth/Seat\s*[:\s]*([0-9]{1,3})\s*(?:Coach\s*[:\s]*([A-Z0-9]+))"
+            // "Berth/Seat : 45 Coach: B4"
             Pattern.compile("""(?:Berth|Seat)\s*(?:No\.?|Number)?\s*[:\s#-]*([0-9]{1,3})[\s,/|]+Coach\s*[:\s-]*([A-Z0-9]+)""", Pattern.CASE_INSENSITIVE)
         )
 
@@ -147,23 +148,23 @@ class TravelPdfExtractor(private val context: Context? = null) {
             }
         }
 
-        // Look for IRCTC codes in proximity to booking status: e.g. "B4 / 45 / LB"
+        // Look for IRCTC codes in booking status: e.g. "CNF/B5/10/MIDDLE" or "CNF/B4/45/LB"
         val statusPattern = Pattern.compile(
-            """(?:CNF|RAC|WL)[/\s,]+[A-Z0-9]+[/\s,]+[0-9]+[/\s,]+(LB|MB|UB|SL|SU|SM|WS|AS)\b""",
+            """(?:CNF|RAC|WL)[/\s,]+[A-Z0-9]+[/\s,]+[0-9]+[/\s,]+(LB|MB|UB|SL|SU|SM|WS|AS|LOWER|MIDDLE|UPPER|SIDE\s*LOWER|SIDE\s*UPPER|SIDE\s*MIDDLE)\b""",
             Pattern.CASE_INSENSITIVE
         )
         val statusMatcher = statusPattern.matcher(text)
         if (statusMatcher.find()) {
             val code = statusMatcher.group(1)?.uppercase().orEmpty()
             return when (code) {
-                "LB" -> "Lower Berth"
-                "MB" -> "Middle Berth"
-                "UB" -> "Upper Berth"
-                "SL" -> "Side Lower Berth"
-                "SU" -> "Side Upper Berth"
-                "SM" -> "Side Middle Berth"
-                "WS" -> "Window Seat"
-                "AS" -> "Aisle Seat"
+                "LB", "LOWER" -> "Lower Berth"
+                "MB", "MIDDLE" -> "Middle Berth"
+                "UB", "UPPER" -> "Upper Berth"
+                "SL", "SIDE LOWER" -> "Side Lower Berth"
+                "SU", "SIDE UPPER" -> "Side Upper Berth"
+                "SM", "SIDE MIDDLE" -> "Side Middle Berth"
+                "WS", "WINDOW" -> "Window Seat"
+                "AS", "AISLE" -> "Aisle Seat"
                 else -> code
             }
         }
@@ -196,8 +197,9 @@ class TravelPdfExtractor(private val context: Context? = null) {
         val dateRegex = """(\d{1,2}[-/.](?:[A-Za-z]{3}|\d{1,2})[-/.]\d{2,4}|\d{4}[-/.](?:[A-Za-z]{3}|\d{1,2})[-/.]\d{1,2}|\d{1,2}\s+[A-Za-z]{3,9}\s+\d{4})"""
 
         val patterns = listOf(
-            Pattern.compile("""(?:Date\s*of\s*Journey|Journey\s*Date|Travel\s*Date|Boarding\s*Date|Departure\s*Date|Flight\s*Date|Date)\s*[:\s-]*$dateRegex""", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("""\b(?:DOJ|Travel\s*On|On)\s*[:\s-]*$dateRegex""", Pattern.CASE_INSENSITIVE)
+            // "Start Date* 17-Jun-2024" or "Date of Journey: 25-Oct-2026" or "Departure* 17-Jun-2024"
+            Pattern.compile("""(?:Start\s*Date|Departure|Date\s*of\s*Journey|Journey\s*Date|Travel\s*Date|Boarding\s*Date|Departure\s*Date|Flight\s*Date|Date)\*?\s*[:\s-]*$dateRegex""", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("""\b(?:DOJ|Travel\s*On|On)\*?\s*[:\s-]*$dateRegex""", Pattern.CASE_INSENSITIVE)
         )
 
         for (p in patterns) {
@@ -223,8 +225,9 @@ class TravelPdfExtractor(private val context: Context? = null) {
         val timeRegex = """(\d{1,2}[:.]\d{2}(?:\s*(?:AM|PM|hrs|hours))?)"""
 
         val patterns = listOf(
-            Pattern.compile("""(?:Departure\s*Time|Sched(?:uled)?\s*Departure|Departure|Dep\.?\s*Time|Departs?|Dep\.?|STD)\s*[:\s-]*$timeRegex""", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("""(?:Boarding\s*Time|Gate\s*Closes)\s*[:\s-]*$timeRegex""", Pattern.CASE_INSENSITIVE)
+            // "Departure* 17-Jun-2024 07:35" or "Departure* 07:35" or "Scheduled Departure: 16:55"
+            Pattern.compile("""(?:Sched(?:uled)?\s*Departure|Departure\s*Time|Departure|Dep\.?\s*Time|Departs?|Dep\.?|STD)\*?\s*(?:\d{1,2}[-/.](?:[A-Za-z]{3}|\d{1,2})[-/.]\d{2,4}\s*)?[:\s-]*$timeRegex""", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("""(?:Boarding\s*Time|Gate\s*Closes)\*?\s*[:\s-]*$timeRegex""", Pattern.CASE_INSENSITIVE)
         )
 
         for (p in patterns) {
@@ -243,8 +246,9 @@ class TravelPdfExtractor(private val context: Context? = null) {
         val timeRegex = """(\d{1,2}[:.]\d{2}(?:\s*(?:AM|PM|hrs|hours))?)"""
 
         val patterns = listOf(
-            Pattern.compile("""(?:Arrival\s*Time|Sched(?:uled)?\s*Arrival|Arrival|Arr\.?\s*Time|Arrives?|Arr\.?|STA)\s*[:\s-]*$timeRegex""", Pattern.CASE_INSENSITIVE),
-            Pattern.compile("""(?:Destination\s*Time|Drop\s*Time)\s*[:\s-]*$timeRegex""", Pattern.CASE_INSENSITIVE)
+            // "Arrival*18-Jun-2024 04:26" or "Arrival* 18-Jun-2024 04:26" or "Arrival: 04:26"
+            Pattern.compile("""(?:Sched(?:uled)?\s*Arrival|Arrival\s*Time|Arrival|Arr\.?\s*Time|Arrives?|Arr\.?|STA)\*?\s*(?:\d{1,2}[-/.](?:[A-Za-z]{3}|\d{1,2})[-/.]\d{2,4}\s*)?[:\s-]*$timeRegex""", Pattern.CASE_INSENSITIVE),
+            Pattern.compile("""(?:Destination\s*Time|Drop\s*Time)\*?\s*[:\s-]*$timeRegex""", Pattern.CASE_INSENSITIVE)
         )
 
         for (p in patterns) {
@@ -257,61 +261,158 @@ class TravelPdfExtractor(private val context: Context? = null) {
         return ""
     }
 
-    // ── 6. Boarding Station / Airport Code ────────────────────────────────────
+    // ── 6 & 7. Boarding & Deboarding Stations / Airport Codes ────────────────
 
-    private fun extractBoardingStation(text: String): String {
-        val patterns = listOf(
-            // "Boarding Station: NDLS / NEW DELHI" or "Boarding At: NDLS"
-            Pattern.compile("""(?:Boarding\s*Station|Boarding\s*At|Boarding\s*Point|From\s*Station|Origin\s*Station|Origin)\s*[:\s-]*([A-Za-z0-9\s()/-]{2,40}?)(?=(?:To\s*Station|Deboarding|Destination|\n|$))""", Pattern.CASE_INSENSITIVE),
-            // "From: DEL" or "From: Indira Gandhi Intl (DEL)"
-            Pattern.compile("""(?:From)\s*[:\s-]*([A-Za-z0-9\s()/-]{2,40}?)(?=(?:To|Destination|\n|$))""", Pattern.CASE_INSENSITIVE),
-            // 3-letter airport code after Origin/From e.g. "DEL -> BOM" or "DEL - BOM"
-            Pattern.compile("""\b([A-Z]{3})\s*(?:->|-|to)\s*([A-Z]{3})\b""")
+    private fun extractStations(text: String): Pair<String, String> {
+        var boarding = ""
+        var deboarding = ""
+
+        // 1. Check for IRCTC Table Layout: "Booked From [Boarding At] To" followed by the stations line
+        val irctcHeader = Pattern.compile(
+            """Booked\s*From[^\r\n]*?Boarding\s*(?:At)?[^\r\n]*?\bTo\b[^\r\n]*[\r\n]+([^\r\n]+)""",
+            Pattern.CASE_INSENSITIVE
         )
+        val irctcHeaderMatcher = irctcHeader.matcher(text)
+        if (irctcHeaderMatcher.find()) {
+            val stationsLine = irctcHeaderMatcher.group(1)?.trim().orEmpty()
+            val tokens = parseIrctcStationLine(stationsLine)
+            if (tokens.size >= 3) {
+                // tokens[0] is Booked From, tokens[1] is Boarding At, tokens[2] is To
+                boarding = cleanStation(tokens[1])
+                deboarding = cleanStation(tokens[2])
+                return Pair(boarding, deboarding)
+            } else if (tokens.size == 2) {
+                boarding = cleanStation(tokens[0])
+                deboarding = cleanStation(tokens[1])
+                return Pair(boarding, deboarding)
+            }
+        }
 
-        for (p in patterns) {
-            val matcher = p.matcher(text)
-            if (matcher.find()) {
-                val candidate = matcher.group(1)?.trim().orEmpty()
+        // 2. Check for vertical / labeled layout in IRCTC or tickets:
+        // "Boarding At -> \n DELHI(DLI)" or "Boarding At: DELHI(DLI)" or "Boarding Point: ..."
+        val boardingPattern = Pattern.compile(
+            """(?:Boarding\s*(?:At|Station|Point|Location)|From\s*(?:Station|City)?|Pickup\s*(?:Point|Location))\s*(?:->)?\s*[*:-]?\s*(?:[\r\n]+\s*)?([A-Za-z0-9\s/.-]+?(?:\([A-Za-z0-9\s/.-]*\)|-[A-Z0-9]{2,5}\(\)|(?=[\r\n]|Departure|Start Date|Dropping|Drop|$)))""",
+            Pattern.CASE_INSENSITIVE
+        )
+        val bm = boardingPattern.matcher(text)
+        if (bm.find()) {
+            val candidate = bm.group(1)?.trim().orEmpty()
+            if (isValidStationOrCode(candidate)) {
+                boarding = cleanStation(candidate)
+            }
+        }
+
+        val toPattern = Pattern.compile(
+            """(?:\bTo\s*Station|\bDeboarding\s*(?:Station|At|Point)|\bDestination\s*(?:Station)?|\bDropping\s*(?:Station|Point|Location)|\bDrop\s*Point|\bTo)\s*[*:-]?\s*(?:[\r\n]+\s*)?([A-Za-z0-9\s/.-]+?(?:\([A-Za-z0-9\s/.-]*\)|-[A-Z0-9]{2,5}\(\)|(?=[\r\n]|Arrival|Class|Distance|Seat|$)))""",
+            Pattern.CASE_INSENSITIVE
+        )
+        val tm = toPattern.matcher(text)
+        if (tm.find()) {
+            val candidate = tm.group(1)?.trim().orEmpty()
+            if (isValidStationOrCode(candidate)) {
+                deboarding = cleanStation(candidate)
+            }
+        }
+
+        // 3. Fallback: Airport route codes e.g. "DEL -> BOM" or "DEL - BOM" or "DEL to BOM"
+        if (boarding.isEmpty() || deboarding.isEmpty()) {
+            val airportRoutePattern = Pattern.compile("""\b([A-Z]{3})\s*(?:->|-|to)\s*([A-Z]{3})\b""")
+            val am = airportRoutePattern.matcher(text)
+            if (am.find()) {
+                if (boarding.isEmpty()) boarding = am.group(1)?.trim().orEmpty()
+                if (deboarding.isEmpty()) deboarding = am.group(2)?.trim().orEmpty()
+            }
+        }
+
+        // 4. Fallback: Standard "From: DEL" / "To: BOM" or "Boarding Point: ..." / "Dropping Point: ..."
+        if (boarding.isEmpty()) {
+            val fromPattern = Pattern.compile("""(?:From|Boarding\s*Point|Pickup\s*Point)\s*[:\s-]*([A-Za-z0-9\s()/-]{2,40}?)(?=(?:To|Dropping|Destination|\n|$))""", Pattern.CASE_INSENSITIVE)
+            val fm = fromPattern.matcher(text)
+            if (fm.find()) {
+                val candidate = fm.group(1)?.trim().orEmpty()
                 if (isValidStationOrCode(candidate)) {
-                    return candidate
+                    boarding = cleanStation(candidate)
                 }
             }
         }
 
-        return ""
+        if (deboarding.isEmpty()) {
+            val toSimplePattern = Pattern.compile("""(?:To|Dropping\s*Point|Drop\s*Point)\s*[:\s-]*([A-Za-z0-9\s()/-]{2,40}?)(?=(?:\n|$|[;,]))""", Pattern.CASE_INSENSITIVE)
+            val tsm = toSimplePattern.matcher(text)
+            if (tsm.find()) {
+                val candidate = tsm.group(1)?.trim().orEmpty()
+                if (isValidStationOrCode(candidate)) {
+                    deboarding = cleanStation(candidate)
+                }
+            }
+        }
+
+        return Pair(boarding, deboarding)
     }
 
-    // ── 7. Deboarding Station / Airport Code ──────────────────────────────────
-
-    private fun extractDeboardingStation(text: String): String {
-        val patterns = listOf(
-            // "Deboarding Station: MMCT / MUMBAI CENTRAL" or "To Station: MMCT"
-            Pattern.compile("""(?:Deboarding\s*Station|Deboarding\s*At|Deboarding\s*Point|To\s*Station|Destination\s*Station|Destination|Dropping\s*Point)\s*[:\s-]*([A-Za-z0-9\s()/-]{2,40}?)(?=(?:\n|$|[;,]))""", Pattern.CASE_INSENSITIVE),
-            // "To: BOM" or "To: Chhatrapati Shivaji (BOM)"
-            Pattern.compile("""(?:To)\s*[:\s-]*([A-Za-z0-9\s()/-]{2,40}?)(?=(?:\n|$|[;,]))""", Pattern.CASE_INSENSITIVE),
-            // 3-letter airport code after Origin/From e.g. "DEL -> BOM" or "DEL - BOM"
-            Pattern.compile("""\b[A-Z]{3}\s*(?:->|-|to)\s*([A-Z]{3})\b""")
-        )
-
-        for (p in patterns) {
-            val matcher = p.matcher(text)
-            if (matcher.find()) {
-                val candidate = matcher.group(1)?.trim().orEmpty()
-                if (isValidStationOrCode(candidate)) {
-                    return candidate
-                }
+    private fun parseIrctcStationLine(line: String): List<String> {
+        val tokens = mutableListOf<String>()
+        // Each station in IRCTC ends with parentheses like (NEW DELHI), (DLI), or ()
+        val p = Pattern.compile("""[A-Za-z0-9\s/.-]+?\([A-Za-z0-9\s/.-]*\)""")
+        val m = p.matcher(line)
+        while (m.find()) {
+            val token = m.group()?.trim().orEmpty()
+            if (token.isNotEmpty()) {
+                tokens.add(token)
             }
         }
+        return tokens
+    }
 
-        return ""
+    /**
+     * Cleans and formats station names and station/airport codes.
+     * Examples:
+     * - "DELHI(DLI)" -> "DELHI (DLI)"
+     * - "BEGU SARAI - BGS()" -> "BEGU SARAI (BGS)"
+     * - "DELHI - DLI(NEW DELHI)" -> "DELHI (DLI)"
+     * - "NEW DELHI (NDLS)" -> "NEW DELHI (NDLS)"
+     */
+    private fun cleanStation(raw: String): String {
+        val trimmed = raw.trim().trim('-', ':', '>', '*')
+
+        // Pattern: "BEGU SARAI - BGS()" -> "BEGU SARAI (BGS)"
+        val emptyParenPattern = Pattern.compile("""^([A-Za-z\s/.-]+?)\s*-\s*([A-Z0-9]{2,5})\s*\(\s*\)$""")
+        val em = emptyParenPattern.matcher(trimmed)
+        if (em.find()) {
+            val station = em.group(1)?.trim().orEmpty()
+            val code = em.group(2)?.trim().orEmpty()
+            return if (code.isNotEmpty()) "$station ($code)" else station
+        }
+
+        // Pattern: "DELHI - DLI(NEW DELHI)" -> "DELHI (DLI)"
+        val dashCodeParenPattern = Pattern.compile("""^([A-Za-z\s/.-]+?)\s*-\s*([A-Z0-9]{2,5})\s*\([^)]*\)$""")
+        val dm = dashCodeParenPattern.matcher(trimmed)
+        if (dm.find()) {
+            val station = dm.group(1)?.trim().orEmpty()
+            val code = dm.group(2)?.trim().orEmpty()
+            return if (code.isNotEmpty()) "$station ($code)" else station
+        }
+
+        // Pattern: "DELHI(DLI)" -> "DELHI (DLI)"
+        val noSpaceParenPattern = Pattern.compile("""^([A-Za-z\s/.-]+?)\(([A-Z0-9]{2,5})\)$""")
+        val nm = noSpaceParenPattern.matcher(trimmed)
+        if (nm.find()) {
+            val station = nm.group(1)?.trim().orEmpty()
+            val code = nm.group(2)?.trim().orEmpty()
+            return "$station ($code)"
+        }
+
+        // Remove trailing empty parentheses if any: e.g. "BGS()" -> "BGS"
+        return trimmed.replace(Regex("""\(\s*\)"""), "").trim()
     }
 
     private fun isValidStationOrCode(station: String): Boolean {
         if (station.isBlank()) return false
-        val lower = station.lowercase()
-        // Ignore keywords
-        if (lower.startsWith("date") || lower.startsWith("time") || lower.startsWith("pnr") || lower.startsWith("seat")) {
+        val lower = station.lowercase().trim()
+        if (lower.startsWith("date") || lower.startsWith("time") || lower.startsWith("pnr") ||
+            lower.startsWith("seat") || lower.startsWith("class") || lower.startsWith("distance") ||
+            lower.startsWith("start date") || lower.startsWith("departure") || lower.startsWith("arrival")
+        ) {
             return false
         }
         return true

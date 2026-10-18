@@ -110,4 +110,68 @@ class TravelPdfExtractorTest {
         assertEquals("Anand Vihar ISBT", info.boardingStation)
         assertEquals("Kashmiri Gate Metro", info.deboardingStation)
     }
+
+    @Test
+    fun testUserSampleIrctcTicketHorizontalLayout() {
+        // Horizontal text layout from PDFTextStripper
+        val userTicketText = """
+            Electronic Reservation Slip (ERS)-Normal User
+            Booked From Boarding At To
+            DELHI - DLI(NEW DELHI) DELHI(DLI) BEGU SARAI - BGS()
+            Start Date* 17-Jun-2024 Departure* 17-Jun-2024 07:35 Arrival*18-Jun-2024 04:26
+            PNR Train No./Name Class
+            2116530134 15484 / MAHANANDA EXP THIRD AC (3A)
+            Quota Distance Booking Date
+            PREMIUM TATKAL (PTQ) 1118 KM 16-Jun-2024 10:02:11 HRS
+            Passenger Details
+            # Name Age Gender Booking Status Current Status
+            1. RAGHVENDRA KUMAR 24 Male CNF/B5/10/MIDDLE CNF/B5/10/MIDDLE
+        """.trimIndent()
+
+        val info = extractor.parse(userTicketText)
+
+        assertEquals("B5-10", info.seatNumber)
+        assertEquals("Middle Berth", info.birthtype)
+        assertEquals("17-Jun-2024", info.dateOfJourney)
+        assertEquals("07:35", info.departureTime)
+        assertEquals("04:26", info.arrivalTime)
+        assertEquals("DELHI (DLI)", info.boardingStation)
+        assertEquals("BEGU SARAI (BGS)", info.deboardingStation)
+    }
+
+    @Test
+    fun testUserSampleIrctcTicketVerticalLayout() {
+        // Vertical text layout
+        val userTicketText = """
+            Electronic Reservation Slip (ERS)-Normal User
+            Booked From
+            DELHI - DLI(NEW DELHI)
+            Start Date* 17-Jun-2024
+            Boarding At ->
+            DELHI(DLI)
+            Departure* 17-Jun-2024 07:35
+            To
+            BEGU SARAI - BGS()
+            Arrival*18-Jun-2024 04:26
+            PNR
+            2116530134
+            Train No./Name
+            15484 / MAHANANDA EXP
+            Class
+            THIRD AC (3A)
+            Passenger Details
+            # Name Age Gender Booking Status Current Status
+            1. RAGHVENDRA KUMAR 24 Male CNF/B5/10/MIDDLE CNF/B5/10/MIDDLE
+        """.trimIndent()
+
+        val info = extractor.parse(userTicketText)
+
+        assertEquals("B5-10", info.seatNumber)
+        assertEquals("Middle Berth", info.birthtype)
+        assertEquals("17-Jun-2024", info.dateOfJourney)
+        assertEquals("07:35", info.departureTime)
+        assertEquals("04:26", info.arrivalTime)
+        assertEquals("DELHI (DLI)", info.boardingStation)
+        assertEquals("BEGU SARAI (BGS)", info.deboardingStation)
+    }
 }
