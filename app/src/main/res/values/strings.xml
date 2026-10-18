@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Glanceables</string>
+
+    <!-- API Key -->
+    <string name="api_key_section_title">OpenWeather API Key</string>
+    <string name="api_key_hint">Enter your API key</string>
+    <string name="api_key_hint_text">Get a free key at openweathermap.org/api</string>
+    <string name="save_api_key">Save API Key</string>
+
+    <!-- Weather -->
+    <string name="fetch_weather">Fetch Weather</string>
+    <string name="temperature_label">TEMPERATURE</string>
+    <string name="uv_index_label">UV INDEX</string>
+    <string name="aqi_label">AIR QUALITY INDEX</string>
+</resources>
