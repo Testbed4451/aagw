@@ -4,6 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
@@ -32,6 +34,8 @@ import com.meilluer.glanceables.databinding.ActivityMainBinding
 import com.meilluer.glanceables.databinding.DialogTeamSelectorBinding
 import com.meilluer.glanceables.databinding.ItemFootballMatchBinding
 import com.meilluer.glanceables.databinding.ItemTeamCheckboxBinding
+import com.meilluer.glanceables.debug.AppLogger
+import com.meilluer.glanceables.debug.DebugLogsDialog
 import com.meilluer.glanceables.pdf.TravelPdfExtractor
 import com.meilluer.glanceables.repository.FootballRepository
 import com.meilluer.glanceables.repository.FootballResult
@@ -88,6 +92,23 @@ class MainActivity : AppCompatActivity() {
         loadCachedData()
         loadStoredTravelInfo()
         loadStoredFootballInfo()
+
+        AppLogger.i("MainActivity", "Glanceables application initialized")
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.action_debug_logs -> {
+                DebugLogsDialog.show(supportFragmentManager)
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
 
     data class IntervalOption(val label: String, val minutes: Long)
@@ -133,6 +154,11 @@ class MainActivity : AppCompatActivity() {
         // Swipe-to-refresh
         binding.swipeRefresh.setOnRefreshListener {
             fetchWeatherWithLocation()
+        }
+
+        // Debug Menu under Settings
+        binding.btnOpenDebugLogs.setOnClickListener {
+            DebugLogsDialog.show(supportFragmentManager)
         }
     }
 
@@ -230,6 +256,7 @@ class MainActivity : AppCompatActivity() {
                 val weatherData = repository.fetchWeatherData(lat, lon, apiKey)
                 prefs.setCachedWeatherData(weatherData)
                 displayWeatherData(weatherData)
+                AppLogger.i("MainActivity", "Weather fetched: ${weatherData.cityName} ${weatherData.temperature}°C")
 
                 // Push to watch
                 wearableSender.sendToWatch(weatherData)
@@ -388,6 +415,7 @@ class MainActivity : AppCompatActivity() {
                     prefs.saveTravelInfo(travelInfo)
                     alarmScheduler.scheduleAlarms(travelInfo)
                     wearableSender.sendTravelInfoToWatch(travelInfo)
+                    AppLogger.i("MainActivity", "PDF travel info extracted successfully")
                     Toast.makeText(
                         this@MainActivity,
                         getString(R.string.travel_extracted_success),
@@ -651,9 +679,11 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val teamIds = followed.map { it.teamId }
+                AppLogger.i("MainActivity", "Fetching football data for ${teamIds.size} followed teams")
                 val result = withContext(Dispatchers.IO) {
                     footballRepository.getMatchesOrNextDay(apiKey, teamIds)
                 }
+                AppLogger.i("MainActivity", "Football fetch result: ${result.javaClass.simpleName}")
 
                 when (result) {
                     is FootballResult.TodayMatches -> {
@@ -683,6 +713,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
             } catch (e: Exception) {
+                AppLogger.e("MainActivity", "Football fetch failed: ${e.message}", e)
                 Toast.makeText(this@MainActivity, "Football error: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 binding.footballProgressBar.visibility = View.GONE
@@ -758,6 +789,7 @@ class MainActivity : AppCompatActivity() {
         val match = currentFootballMatches.first()
         lifecycleScope.launch {
             wearableSender.sendFootballDataToWatch(match, currentIsUpcoming)
+            AppLogger.i("MainActivity", "Pushed football match to watch: ${match.homeTeam.name} vs ${match.awayTeam.name} (upcoming=$currentIsUpcoming)")
             Toast.makeText(this@MainActivity, getString(R.string.football_sent_to_watch), Toast.LENGTH_SHORT).show()
         }
     }

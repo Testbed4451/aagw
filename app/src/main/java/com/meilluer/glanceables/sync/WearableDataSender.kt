@@ -8,6 +8,7 @@ import com.google.android.gms.wearable.Wearable
 import com.meilluer.glanceables.data.FootballMatch
 import com.meilluer.glanceables.data.TravelInfo
 import com.meilluer.glanceables.data.WeatherData
+import com.meilluer.glanceables.debug.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -80,8 +81,10 @@ class WearableDataSender(private val context: Context) {
                 val dataClient = Wearable.getDataClient(context)
                 Tasks.await(dataClient.putDataItem(putDataRequest))
                 Log.d(TAG, "Weather data sent to watch successfully")
+                AppLogger.d(TAG, "Weather data sent to watch successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send weather data to watch", e)
+                AppLogger.w(TAG, "Failed to send weather data to watch: ${e.message}")
             }
         }
     }
@@ -109,8 +112,10 @@ class WearableDataSender(private val context: Context) {
                 val dataClient = Wearable.getDataClient(context)
                 Tasks.await(dataClient.putDataItem(putDataRequest))
                 Log.d(TAG, "Travel data sent to watch successfully")
+                AppLogger.d(TAG, "Travel data sent to watch successfully")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send travel data to watch", e)
+                AppLogger.w(TAG, "Failed to send travel data to watch: ${e.message}")
             }
         }
     }
@@ -160,8 +165,10 @@ class WearableDataSender(private val context: Context) {
                 val dataClient = Wearable.getDataClient(context)
                 Tasks.await(dataClient.putDataItem(putDataRequest))
                 Log.d(TAG, "Football data sent to watch successfully: $summary")
+                AppLogger.d(TAG, "Football data sent to watch: $summary")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send football data to watch", e)
+                AppLogger.w(TAG, "Failed to send football data to watch: ${e.message}")
             }
         }
     }

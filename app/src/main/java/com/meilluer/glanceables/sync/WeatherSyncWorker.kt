@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.meilluer.glanceables.debug.AppLogger
 import com.meilluer.glanceables.repository.FootballRepository
 import com.meilluer.glanceables.repository.FootballResult
 import com.meilluer.glanceables.repository.WeatherRepository
@@ -51,6 +52,7 @@ class WeatherSyncWorker(
             sender.sendToWatch(weatherData)
 
             Log.d(TAG, "Weather sync completed: ${weatherData.cityName} ${weatherData.temperature}°C")
+            AppLogger.i(TAG, "Background sync completed: ${weatherData.cityName} ${weatherData.temperature}°C")
 
             // Sync football scores if configured
             val footballApiKey = prefs.getFootballApiKey()
@@ -76,14 +78,17 @@ class WeatherSyncWorker(
                         }
                     }
                     Log.d(TAG, "Football sync completed in background")
+                    AppLogger.i(TAG, "Background football sync completed: ${result.javaClass.simpleName}")
                 } catch (e: Exception) {
                     Log.w(TAG, "Football sync failed in background", e)
+                    AppLogger.w(TAG, "Background football sync failed: ${e.message}", e)
                 }
             }
 
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Weather sync failed", e)
+            AppLogger.e(TAG, "Background sync failed: ${e.message}", e)
             Result.retry()
         }
     }

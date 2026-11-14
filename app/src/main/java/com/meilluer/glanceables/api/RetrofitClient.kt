@@ -13,7 +13,9 @@ object RetrofitClient {
 
     private const val BASE_URL = "https://api.openweathermap.org/"
 
-    private val loggingInterceptor = HttpLoggingInterceptor().apply {
+    private val loggingInterceptor = HttpLoggingInterceptor { message ->
+        com.meilluer.glanceables.debug.AppLogger.d("OpenWeatherApi", message)
+    }.apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
 

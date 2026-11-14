@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp">
+
+    <!-- Level Badge -->
+    <TextView
+        android:id="@+id/textLogLevel"
+        android:layout_width="22dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:fontFamily="monospace"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/bg_match_status"
+        android:layout_marginEnd="6dp"
+        tools:text="D" />
+
+    <!-- Time & Tag & Message -->
+    <TextView
+        android:id="@+id/textLogContent"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="monospace"
+        android:textSize="11sp"
+        android:textColor="?android:attr/textColorPrimary"
+        tools:text="15:30:12.456 [FootballApi] GET /v4/matches" />
+
+</LinearLayout>

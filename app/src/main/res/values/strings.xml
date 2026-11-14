@@ -62,4 +62,18 @@
     <string name="select_teams_title">Follow Teams</string>
     <string name="loading_teams">Loading teams…</string>
     <string name="save_teams">Done</string>
+
+    <!-- Debug Menu & Live Logs -->
+    <string name="debug_menu_title">Debug Menu (Live Logs)</string>
+    <string name="debug_menu_subtitle">Inspect real-time logs, network traffic, background sync, and diagnostics.</string>
+    <string name="btn_show_live_logs">Open Live Debug Logs</string>
+    <string name="debug_status_live">● LIVE</string>
+    <string name="btn_pause_logs">Pause</string>
+    <string name="btn_copy_logs">Copy</string>
+    <string name="btn_clear_logs">Clear</string>
+    <string name="btn_share_logs">Share</string>
+    <string name="hint_search_logs">Filter by tag or message…</string>
+    <string name="btn_dump_logcat">Dump System Logcat</string>
+    <string name="btn_close_logs">Close</string>
+    <string name="menu_debug_logs">Debug Logs</string>
 </resources>

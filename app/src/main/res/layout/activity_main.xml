@@ -119,6 +119,37 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- Debug Menu under Settings -->
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?android:attr/listDivider"
+                        android:layout_marginTop="16dp"
+                        android:layout_marginBottom="12dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/debug_menu_title"
+                        android:textAppearance="?attr/textAppearanceSubtitle2"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/debug_menu_subtitle"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnOpenDebugLogs"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_show_live_logs"
+                        app:icon="@android:drawable/ic_menu_info_details" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

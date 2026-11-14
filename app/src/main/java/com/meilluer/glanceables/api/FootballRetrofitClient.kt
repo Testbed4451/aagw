@@ -24,7 +24,9 @@ object FootballRetrofitClient {
     /** Rate window duration in milliseconds (1 minute). */
     private const val RATE_WINDOW_MS = 60_000L
 
-    private val loggingInterceptor = HttpLoggingInterceptor().apply {
+    private val loggingInterceptor = HttpLoggingInterceptor { message ->
+        com.meilluer.glanceables.debug.AppLogger.d("FootballApi", message)
+    }.apply {
         level = HttpLoggingInterceptor.Level.BASIC
     }
 
