@@ -10,7 +10,7 @@ import java.util.regex.Pattern
 
 /**
  * Extracts travel information (Seat Number, Berth Type, Date of Journey, Departure/Arrival Times,
- * Boarding/Deboarding Stations or Airport Codes) from PDF documents (train tickets, flight boarding passes,
+ * Boarding/Deboarding Station Codes, Train Number and Train Name) from PDF documents (train tickets, flight boarding passes,
  * bus bookings).
  */
 class TravelPdfExtractor(private val context: Context? = null) {
@@ -33,6 +33,7 @@ class TravelPdfExtractor(private val context: Context? = null) {
             val document = PDDocument.load(inputStream)
             try {
                 val stripper = PDFTextStripper()
+                stripper.sortByPosition = true
                 stripper.getText(document)
             } finally {
                 document.close()
@@ -50,10 +51,11 @@ class TravelPdfExtractor(private val context: Context? = null) {
 
         val seatNumber = extractSeatNumber(normalized)
         val birthtype = extractBirthtype(normalized, seatNumber)
-        val dateOfJourney = extractDateOfJourney(normalized)
-        val departureTime = extractDepartureTime(normalized)
+        val dateOfJourney = extractDateOfJourney(normalized).ifBlank { null }
+        val departureTime = extractDepartureTime(normalized).ifBlank { null }
         val arrivalTime = extractArrivalTime(normalized)
         val (boardingStation, deboardingStation) = extractStations(normalized)
+        val (trainNumber, trainName) = extractTrainInfo(normalized)
 
         return TravelInfo(
             seatNumber = seatNumber,
@@ -62,7 +64,9 @@ class TravelPdfExtractor(private val context: Context? = null) {
             departureTime = departureTime,
             arrivalTime = arrivalTime,
             boardingStation = boardingStation,
-            deboardingStation = deboardingStation
+            deboardingStation = deboardingStation,
+            trainNumber = trainNumber,
+            trainName = trainName
         )
     }
 
@@ -261,11 +265,11 @@ class TravelPdfExtractor(private val context: Context? = null) {
         return ""
     }
 
-    // ── 6 & 7. Boarding & Deboarding Stations / Airport Codes ────────────────
+    // ── 6 & 7. Boarding & Deboarding Station Codes ───────────────────────────
 
     private fun extractStations(text: String): Pair<String, String> {
-        var boarding = ""
-        var deboarding = ""
+        var boardingCode = ""
+        var deboardingCode = ""
 
         // 1. Check for IRCTC Table Layout: "Booked From [Boarding At] To" followed by the stations line
         val irctcHeader = Pattern.compile(
@@ -278,76 +282,98 @@ class TravelPdfExtractor(private val context: Context? = null) {
             val tokens = parseIrctcStationLine(stationsLine)
             if (tokens.size >= 3) {
                 // tokens[0] is Booked From, tokens[1] is Boarding At, tokens[2] is To
-                boarding = cleanStation(tokens[1])
-                deboarding = cleanStation(tokens[2])
-                return Pair(boarding, deboarding)
+                boardingCode = extractStationCode(tokens[1])
+                deboardingCode = extractStationCode(tokens[2])
+                if (boardingCode.isNotEmpty() && deboardingCode.isNotEmpty()) {
+                    return Pair(boardingCode, deboardingCode)
+                }
             } else if (tokens.size == 2) {
-                boarding = cleanStation(tokens[0])
-                deboarding = cleanStation(tokens[1])
-                return Pair(boarding, deboarding)
+                boardingCode = extractStationCode(tokens[0])
+                deboardingCode = extractStationCode(tokens[1])
+                if (boardingCode.isNotEmpty() && deboardingCode.isNotEmpty()) {
+                    return Pair(boardingCode, deboardingCode)
+                }
             }
         }
 
-        // 2. Check for vertical / labeled layout in IRCTC or tickets:
-        // "Boarding At -> \n DELHI(DLI)" or "Boarding At: DELHI(DLI)" or "Boarding Point: ..."
-        val boardingPattern = Pattern.compile(
-            """(?:Boarding\s*(?:At|Station|Point|Location)|From\s*(?:Station|City)?|Pickup\s*(?:Point|Location))\s*(?:->)?\s*[*:-]?\s*(?:[\r\n]+\s*)?([A-Za-z0-9\s/.-]+?(?:\([A-Za-z0-9\s/.-]*\)|-[A-Z0-9]{2,5}\(\)|(?=[\r\n]|Departure|Start Date|Dropping|Drop|$)))""",
-            Pattern.CASE_INSENSITIVE
-        )
-        val bm = boardingPattern.matcher(text)
-        if (bm.find()) {
-            val candidate = bm.group(1)?.trim().orEmpty()
-            if (isValidStationOrCode(candidate)) {
-                boarding = cleanStation(candidate)
+        // 2. Direct Boarding search (handling arrows like ->, ➔, colons, newlines):
+        // "Boarding At -> DELHI(DLI)" or "Boarding At \n DELHI(DLI)" or "Boarding At: DELHI(DLI)"
+        if (boardingCode.isEmpty()) {
+            val boardingPattern = Pattern.compile(
+                """(?:Boarding\s*(?:At|Station|Point)?|From\s*(?:Station|City)?|Pickup\s*(?:Point|Location)?)\b[^\w\n]*\n*([A-Za-z0-9\s/().-]+?)(?=\n|Departure|Start Date|Dropping|Drop|$)""",
+                Pattern.CASE_INSENSITIVE
+            )
+            val bm = boardingPattern.matcher(text)
+            if (bm.find()) {
+                val candidate = bm.group(1)?.trim().orEmpty()
+                if (isValidStationOrCode(candidate)) {
+                    boardingCode = extractStationCode(candidate)
+                }
             }
         }
 
-        val toPattern = Pattern.compile(
-            """(?:\bTo\s*Station|\bDeboarding\s*(?:Station|At|Point)|\bDestination\s*(?:Station)?|\bDropping\s*(?:Station|Point|Location)|\bDrop\s*Point|\bTo)\s*[*:-]?\s*(?:[\r\n]+\s*)?([A-Za-z0-9\s/.-]+?(?:\([A-Za-z0-9\s/.-]*\)|-[A-Z0-9]{2,5}\(\)|(?=[\r\n]|Arrival|Class|Distance|Seat|$)))""",
-            Pattern.CASE_INSENSITIVE
-        )
-        val tm = toPattern.matcher(text)
-        if (tm.find()) {
-            val candidate = tm.group(1)?.trim().orEmpty()
-            if (isValidStationOrCode(candidate)) {
-                deboarding = cleanStation(candidate)
+        // Direct Deboarding search:
+        // "To \n BEGU SARAI - BGS()" or "To Station: MMCT" or "Dropping Point: ..."
+        if (deboardingCode.isEmpty()) {
+            val toPattern = Pattern.compile(
+                """(?:\bTo\s*Station|\bDeboarding\s*(?:Station|At|Point)|\bDestination\s*(?:Station)?|\bDropping\s*(?:Station|Point|Location)|\bDrop\s*Point|\bTo)\b[^\w\n]*\n*([A-Za-z0-9\s/().-]+?)(?=\n|Arrival|Class|Distance|Seat|$)""",
+                Pattern.CASE_INSENSITIVE
+            )
+            val tm = toPattern.matcher(text)
+            if (tm.find()) {
+                val candidate = tm.group(1)?.trim().orEmpty()
+                if (isValidStationOrCode(candidate)) {
+                    deboardingCode = extractStationCode(candidate)
+                }
             }
         }
 
-        // 3. Fallback: Airport route codes e.g. "DEL -> BOM" or "DEL - BOM" or "DEL to BOM"
-        if (boarding.isEmpty() || deboarding.isEmpty()) {
+        // 3. Airport route codes e.g. "DEL -> BOM" or "DEL - BOM" or "DEL to BOM"
+        if (boardingCode.isEmpty() || deboardingCode.isEmpty()) {
             val airportRoutePattern = Pattern.compile("""\b([A-Z]{3})\s*(?:->|-|to)\s*([A-Z]{3})\b""")
             val am = airportRoutePattern.matcher(text)
             if (am.find()) {
-                if (boarding.isEmpty()) boarding = am.group(1)?.trim().orEmpty()
-                if (deboarding.isEmpty()) deboarding = am.group(2)?.trim().orEmpty()
+                if (boardingCode.isEmpty()) boardingCode = am.group(1)?.trim().orEmpty()
+                if (deboardingCode.isEmpty()) deboardingCode = am.group(2)?.trim().orEmpty()
             }
         }
 
-        // 4. Fallback: Standard "From: DEL" / "To: BOM" or "Boarding Point: ..." / "Dropping Point: ..."
-        if (boarding.isEmpty()) {
+        // 4. Fallback search for Station Codes in IRCTC format across lines following "Boarding"
+        if (boardingCode.isEmpty()) {
+            val irctcBoardingCodePattern = Pattern.compile(
+                """(?:Boarding[^\n]*)\n+.*?([A-Za-z\s]+)\(([A-Z0-9]{2,5})\)""",
+                Pattern.CASE_INSENSITIVE
+            )
+            val ibm = irctcBoardingCodePattern.matcher(text)
+            if (ibm.find()) {
+                boardingCode = ibm.group(2)?.trim().orEmpty()
+            }
+        }
+
+        // 5. Fallback: Standard "From: DEL" / "To: BOM"
+        if (boardingCode.isEmpty()) {
             val fromPattern = Pattern.compile("""(?:From|Boarding\s*Point|Pickup\s*Point)\s*[:\s-]*([A-Za-z0-9\s()/-]{2,40}?)(?=(?:To|Dropping|Destination|\n|$))""", Pattern.CASE_INSENSITIVE)
             val fm = fromPattern.matcher(text)
             if (fm.find()) {
                 val candidate = fm.group(1)?.trim().orEmpty()
                 if (isValidStationOrCode(candidate)) {
-                    boarding = cleanStation(candidate)
+                    boardingCode = extractStationCode(candidate)
                 }
             }
         }
 
-        if (deboarding.isEmpty()) {
+        if (deboardingCode.isEmpty()) {
             val toSimplePattern = Pattern.compile("""(?:To|Dropping\s*Point|Drop\s*Point)\s*[:\s-]*([A-Za-z0-9\s()/-]{2,40}?)(?=(?:\n|$|[;,]))""", Pattern.CASE_INSENSITIVE)
             val tsm = toSimplePattern.matcher(text)
             if (tsm.find()) {
                 val candidate = tsm.group(1)?.trim().orEmpty()
                 if (isValidStationOrCode(candidate)) {
-                    deboarding = cleanStation(candidate)
+                    deboardingCode = extractStationCode(candidate)
                 }
             }
         }
 
-        return Pair(boarding, deboarding)
+        return Pair(boardingCode, deboardingCode)
     }
 
     private fun parseIrctcStationLine(line: String): List<String> {
@@ -365,45 +391,143 @@ class TravelPdfExtractor(private val context: Context? = null) {
     }
 
     /**
-     * Cleans and formats station names and station/airport codes.
-     * Examples:
-     * - "DELHI(DLI)" -> "DELHI (DLI)"
-     * - "BEGU SARAI - BGS()" -> "BEGU SARAI (BGS)"
-     * - "DELHI - DLI(NEW DELHI)" -> "DELHI (DLI)"
-     * - "NEW DELHI (NDLS)" -> "NEW DELHI (NDLS)"
+     * Extracts ONLY the station code or airport code (e.g. "DLI", "BGS", "NDLS", "DEL", "BOM").
      */
-    private fun cleanStation(raw: String): String {
-        val trimmed = raw.trim().trim('-', ':', '>', '*')
+    private fun extractStationCode(raw: String): String {
+        val trimmed = raw.trim().trim('-', ':', '>', '*', '➔')
 
-        // Pattern: "BEGU SARAI - BGS()" -> "BEGU SARAI (BGS)"
-        val emptyParenPattern = Pattern.compile("""^([A-Za-z\s/.-]+?)\s*-\s*([A-Z0-9]{2,5})\s*\(\s*\)$""")
-        val em = emptyParenPattern.matcher(trimmed)
-        if (em.find()) {
-            val station = em.group(1)?.trim().orEmpty()
-            val code = em.group(2)?.trim().orEmpty()
-            return if (code.isNotEmpty()) "$station ($code)" else station
-        }
-
-        // Pattern: "DELHI - DLI(NEW DELHI)" -> "DELHI (DLI)"
-        val dashCodeParenPattern = Pattern.compile("""^([A-Za-z\s/.-]+?)\s*-\s*([A-Z0-9]{2,5})\s*\([^)]*\)$""")
+        // 1. Pattern: "BEGU SARAI - BGS()" or "- BGS()" or "- DLI(NEW DELHI)"
+        val dashCodeParenPattern = Pattern.compile("""-\s*([A-Z0-9]{2,5})\s*\(""")
         val dm = dashCodeParenPattern.matcher(trimmed)
         if (dm.find()) {
-            val station = dm.group(1)?.trim().orEmpty()
-            val code = dm.group(2)?.trim().orEmpty()
-            return if (code.isNotEmpty()) "$station ($code)" else station
+            return dm.group(1)?.trim().orEmpty()
         }
 
-        // Pattern: "DELHI(DLI)" -> "DELHI (DLI)"
-        val noSpaceParenPattern = Pattern.compile("""^([A-Za-z\s/.-]+?)\(([A-Z0-9]{2,5})\)$""")
-        val nm = noSpaceParenPattern.matcher(trimmed)
-        if (nm.find()) {
-            val station = nm.group(1)?.trim().orEmpty()
-            val code = nm.group(2)?.trim().orEmpty()
-            return "$station ($code)"
+        // 2. Pattern: "DELHI(DLI)" or "NEW DELHI (NDLS)" -> extracts "DLI" or "NDLS"
+        val parenCodePattern = Pattern.compile("""\(([A-Z0-9]{2,5})\)""")
+        val pm = parenCodePattern.matcher(trimmed)
+        if (pm.find()) {
+            return pm.group(1)?.trim().orEmpty()
         }
 
-        // Remove trailing empty parentheses if any: e.g. "BGS()" -> "BGS"
+        // 3. Pattern: "NDLS / NEW DELHI" or "NEW DELHI / NDLS"
+        val slashCodePattern = Pattern.compile("""\b([A-Z0-9]{2,5})\s*/|/\s*([A-Z0-9]{2,5})\b""")
+        val sm = slashCodePattern.matcher(trimmed)
+        if (sm.find()) {
+            val c1 = sm.group(1)?.trim().orEmpty()
+            val c2 = sm.group(2)?.trim().orEmpty()
+            return c1.ifEmpty { c2 }
+        }
+
+        // 4. Pattern: "NAME - CODE"
+        val dashCodePattern = Pattern.compile("""-\s*([A-Z0-9]{2,5})\b""")
+        val dcm = dashCodePattern.matcher(trimmed)
+        if (dcm.find()) {
+            return dcm.group(1)?.trim().orEmpty()
+        }
+
+        // 5. If string is already 2 to 5 letters (e.g. "DLI", "BGS", "DEL", "BOM")
+        val directCodePattern = Pattern.compile("""^[A-Z0-9]{2,5}$""")
+        if (directCodePattern.matcher(trimmed).matches()) {
+            return trimmed
+        }
+
+        // 6. First uppercase word of 2 to 5 letters if uppercase code exists
+        val wordCodePattern = Pattern.compile("""\b([A-Z]{3,4})\b""")
+        val wm = wordCodePattern.matcher(trimmed)
+        if (wm.find()) {
+            val word = wm.group(1)?.trim().orEmpty()
+            if (word != "EXP" && word != "NEW" && word != "THE" && word != "FOR") {
+                return word
+            }
+        }
+
+        // Fallback: remove empty parentheses and return clean text
         return trimmed.replace(Regex("""\(\s*\)"""), "").trim()
+    }
+
+    // ── 8 & 9. Train Number & Train Name ─────────────────────────────────────
+
+    private fun extractTrainInfo(text: String): Pair<String, String> {
+        var number = ""
+        var name = ""
+
+        // 1. "Train No./Name: 15484 / MAHANANDA EXP" or "Train No. & Name: 12952 / NEW DELHI RAJDHANI"
+        val labeled = Pattern.compile(
+            """(?:Train\s*(?:No\.?|Number)?\s*(?:[/&]\s*Name)?)\s*[:\s-]*([0-9]{4,5})\s*[/,-]\s*([A-Za-z0-9\s.-]+?)(?=\n|Class|Distance|Quota|Booking|$)""",
+            Pattern.CASE_INSENSITIVE
+        )
+        val lm = labeled.matcher(text)
+        if (lm.find()) {
+            number = lm.group(1)?.trim().orEmpty()
+            name = lm.group(2)?.trim().orEmpty()
+            return Pair(number, name)
+        }
+
+        // 2. Vertical layout:
+        // Train No./Name
+        // 15484 / MAHANANDA EXP
+        val vertical = Pattern.compile(
+            """Train\s*(?:No\.?|Number)?\s*(?:[/&]\s*Name)?[^\w\n]*\n+\s*([0-9]{4,5})\s*[/,-]\s*([A-Za-z0-9\s.-]+?)(?=\n|Class|Distance|Quota|Booking|$)""",
+            Pattern.CASE_INSENSITIVE
+        )
+        val vm = vertical.matcher(text)
+        if (vm.find()) {
+            number = vm.group(1)?.trim().orEmpty()
+            name = vm.group(2)?.trim().orEmpty()
+            return Pair(number, name)
+        }
+
+        // 3. Horizontal table row after 10-digit PNR: "2116530134 15484 / MAHANANDA EXP THIRD AC"
+        val tableRow = Pattern.compile(
+            """\b[0-9]{10}\s+([0-9]{4,5})\s*[/,-]\s*([A-Za-z0-9\s.-]+?)\s+(?:FIRST|SECOND|THIRD|SL|1A|2A|3A|CC|EC|2S|CHAIR|EXECUTIVE)\b""",
+            Pattern.CASE_INSENSITIVE
+        )
+        val tm = tableRow.matcher(text)
+        if (tm.find()) {
+            number = tm.group(1)?.trim().orEmpty()
+            name = tm.group(2)?.trim().orEmpty()
+            return Pair(number, name)
+        }
+
+        // 4. Standalone pattern: "15484 / MAHANANDA EXP"
+        val standalone = Pattern.compile(
+            """\b([0-9]{5})\s*[/,-]\s*([A-Za-z\s]{3,30}?(?:EXP(?:RESS)?|SF|SUPERFAST|SPL|SPECIAL|PASSENGER|MAIL|RAJDHANI|SHATABDI|VANDE\s*BHARAT|DURONTO|GARIB\s*RATH))\b""",
+            Pattern.CASE_INSENSITIVE
+        )
+        val sm = standalone.matcher(text)
+        if (sm.find()) {
+            number = sm.group(1)?.trim().orEmpty()
+            name = sm.group(2)?.trim().orEmpty()
+            return Pair(number, name)
+        }
+
+        // 5. Separate Train No: "Train No: 15484"
+        val trainNoOnly = Pattern.compile("""(?:Train\s*(?:No\.?|Number))\s*[:\s-]*([0-9]{4,5})\b""", Pattern.CASE_INSENSITIVE)
+        val tnm = trainNoOnly.matcher(text)
+        if (tnm.find()) {
+            number = tnm.group(1)?.trim().orEmpty()
+        }
+
+        val trainNameOnly = Pattern.compile("""(?:Train\s*Name)\s*[:\s-]*([A-Za-z0-9\s.-]+?)(?=\n|Class|Distance|Quota|Booking|$)""", Pattern.CASE_INSENSITIVE)
+        val tnam = trainNameOnly.matcher(text)
+        if (tnam.find()) {
+            name = tnam.group(1)?.trim().orEmpty()
+        }
+
+        // 6. Flight: "Flight: 6E-204"
+        if (number.isEmpty()) {
+            val flight = Pattern.compile(
+                """(?:Flight\s*(?:No\.?)?|Flight)\s*[:\s-]*([A-Z0-9]{2,3}[- ]?[0-9]{3,4})\b""",
+                Pattern.CASE_INSENSITIVE
+            )
+            val fm = flight.matcher(text)
+            if (fm.find()) {
+                number = fm.group(1)?.trim().orEmpty()
+            }
+        }
+
+        return Pair(number, name)
     }
 
     private fun isValidStationOrCode(station: String): Boolean {

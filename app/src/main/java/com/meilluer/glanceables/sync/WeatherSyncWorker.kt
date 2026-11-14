@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.meilluer.glanceables.repository.FootballRepository
+import com.meilluer.glanceables.repository.FootballResult
 import com.meilluer.glanceables.repository.WeatherRepository
 import com.meilluer.glanceables.storage.PreferencesManager
 
@@ -49,6 +51,36 @@ class WeatherSyncWorker(
             sender.sendToWatch(weatherData)
 
             Log.d(TAG, "Weather sync completed: ${weatherData.cityName} ${weatherData.temperature}°C")
+
+            // Sync football scores if configured
+            val footballApiKey = prefs.getFootballApiKey()
+            val followedTeams = prefs.getFollowedTeams()
+            if (footballApiKey.isNotBlank() && followedTeams.isNotEmpty()) {
+                try {
+                    val footballRepo = FootballRepository()
+                    val result = footballRepo.getMatchesOrNextDay(
+                        footballApiKey,
+                        followedTeams.map { it.teamId }
+                    )
+                    when (result) {
+                        is FootballResult.TodayMatches -> {
+                            if (result.matches.isNotEmpty()) {
+                                sender.sendFootballDataToWatch(result.matches.first(), isUpcoming = false)
+                            }
+                        }
+                        is FootballResult.UpcomingMatch -> {
+                            sender.sendFootballDataToWatch(result.match, isUpcoming = true)
+                        }
+                        is FootballResult.NoMatches -> {
+                            // No action needed
+                        }
+                    }
+                    Log.d(TAG, "Football sync completed in background")
+                } catch (e: Exception) {
+                    Log.w(TAG, "Football sync failed in background", e)
+                }
+            }
+
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Weather sync failed", e)

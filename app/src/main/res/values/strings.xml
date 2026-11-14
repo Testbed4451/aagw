@@ -33,9 +33,33 @@
     <string name="arrival_time_label">Arrival Time</string>
     <string name="boarding_station_label">Boarding Station / Airport Code</string>
     <string name="deboarding_station_label">Deboarding Station / Airport Code</string>
+    <string name="train_number_label">Train / Flight Number</string>
+    <string name="train_name_label">Train / Carrier Name</string>
     <string name="travel_saved_success">Travel information saved locally</string>
     <string name="travel_extracted_success">Extracted ticket details from PDF</string>
     <string name="travel_cleared">Travel information cleared</string>
     <string name="pdf_extracting">Extracting information from PDF…</string>
     <string name="pdf_error">Could not extract information from PDF: %s</string>
+
+    <!-- Football Scores (football-data.org) -->
+    <string name="football_section_title">Football Scores (Glanceable)</string>
+    <string name="football_section_subtitle">Follow your favorite teams to get live match scores on your watch complication. Shows next match day if no games today.</string>
+    <string name="football_api_key_section_title">football-data.org API Key</string>
+    <string name="football_api_key_hint">Enter football-data.org API key</string>
+    <string name="football_api_key_hint_text">Get a free API key at football-data.org</string>
+    <string name="save_football_api_key">Save Football API Key</string>
+    <string name="football_api_key_saved">Football API key saved</string>
+    <string name="followed_teams_label">FOLLOWED TEAMS</string>
+    <string name="btn_add_team">Select Teams to Follow</string>
+    <string name="today_matches_label">TODAY\'S MATCHES</string>
+    <string name="next_match_label">NEXT MATCH DAY</string>
+    <string name="no_teams_followed">No teams selected. Tap \"Select Teams to Follow\" to choose teams.</string>
+    <string name="no_matches_found">No matches found for followed teams.</string>
+    <string name="btn_fetch_football">Refresh Football Scores</string>
+    <string name="btn_send_football_to_watch">Push Scores to Watch</string>
+    <string name="football_sent_to_watch">Football match pushed to watch</string>
+    <string name="select_competition">Select Competition</string>
+    <string name="select_teams_title">Follow Teams</string>
+    <string name="loading_teams">Loading teams…</string>
+    <string name="save_teams">Done</string>
 </resources>

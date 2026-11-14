@@ -135,8 +135,10 @@ class TravelPdfExtractorTest {
         assertEquals("17-Jun-2024", info.dateOfJourney)
         assertEquals("07:35", info.departureTime)
         assertEquals("04:26", info.arrivalTime)
-        assertEquals("DELHI (DLI)", info.boardingStation)
-        assertEquals("BEGU SARAI (BGS)", info.deboardingStation)
+        assertEquals("DLI", info.boardingStation)
+        assertEquals("BGS", info.deboardingStation)
+        assertEquals("15484", info.trainNumber)
+        assertEquals("MAHANANDA EXP", info.trainName)
     }
 
     @Test
@@ -171,7 +173,9 @@ class TravelPdfExtractorTest {
         assertEquals("17-Jun-2024", info.dateOfJourney)
         assertEquals("07:35", info.departureTime)
         assertEquals("04:26", info.arrivalTime)
-        assertEquals("DELHI (DLI)", info.boardingStation)
-        assertEquals("BEGU SARAI (BGS)", info.deboardingStation)
+        assertEquals("DLI", info.boardingStation)
+        assertEquals("BGS", info.deboardingStation)
+        assertEquals("15484", info.trainNumber)
+        assertEquals("MAHANANDA EXP", info.trainName)
     }
 }
