@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.meilluer.glanceables.data.FollowedCricketTeam
 import com.meilluer.glanceables.data.FollowedTeamInfo
 import com.meilluer.glanceables.data.TravelInfo
 import com.meilluer.glanceables.data.WeatherData
@@ -225,6 +226,36 @@ class PreferencesManager(context: Context) {
         setFollowedTeams(current)
     }
 
+    // ── Cricket Data Storage ─────────────────────────────────────────────────
+
+    fun getFollowedCricketTeams(): List<FollowedCricketTeam> {
+        val json = prefs.getString(KEY_FOLLOWED_CRICKET_TEAMS, null) ?: return emptyList()
+        return try {
+            val type = object : TypeToken<List<FollowedCricketTeam>>() {}.type
+            gson.fromJson(json, type) ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun setFollowedCricketTeams(teams: List<FollowedCricketTeam>) {
+        val json = gson.toJson(teams)
+        prefs.edit().putString(KEY_FOLLOWED_CRICKET_TEAMS, json).apply()
+    }
+
+    fun addFollowedCricketTeam(team: FollowedCricketTeam) {
+        val current = getFollowedCricketTeams().toMutableList()
+        if (current.none { it.shortName.equals(team.shortName, ignoreCase = true) }) {
+            current.add(team)
+            setFollowedCricketTeams(current)
+        }
+    }
+
+    fun removeFollowedCricketTeam(teamShortName: String) {
+        val current = getFollowedCricketTeams().filterNot { it.shortName.equals(teamShortName, ignoreCase = true) }
+        setFollowedCricketTeams(current)
+    }
+
     companion object {
         private const val PREFS_NAME = "glanceables_prefs"
         private const val KEY_API_KEY = "openweather_api_key"
@@ -249,5 +280,8 @@ class PreferencesManager(context: Context) {
         // Football Data keys
         const val KEY_FOOTBALL_API_KEY = "football_api_key"
         const val KEY_FOLLOWED_TEAMS = "followed_teams"
+
+        // Cricket Data keys
+        const val KEY_FOLLOWED_CRICKET_TEAMS = "followed_cricket_teams"
     }
 }

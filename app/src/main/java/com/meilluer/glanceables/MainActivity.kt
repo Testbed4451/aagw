@@ -4,6 +4,10 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -25,13 +29,20 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.meilluer.glanceables.alarm.TravelAlarmScheduler
+import com.meilluer.glanceables.data.CricketMatch
+import com.meilluer.glanceables.data.CricketTeam
+import com.meilluer.glanceables.data.CricketTeamCatalog
+import com.meilluer.glanceables.data.FollowedCricketTeam
 import com.meilluer.glanceables.data.FollowedTeamInfo
 import com.meilluer.glanceables.data.FootballMatch
 import com.meilluer.glanceables.data.FootballTeam
 import com.meilluer.glanceables.data.TravelInfo
 import com.meilluer.glanceables.data.WeatherData
 import com.meilluer.glanceables.databinding.ActivityMainBinding
+import com.meilluer.glanceables.databinding.DialogCricketTeamSelectorBinding
 import com.meilluer.glanceables.databinding.DialogTeamSelectorBinding
+import com.meilluer.glanceables.databinding.ItemCricketMatchBinding
+import com.meilluer.glanceables.databinding.ItemCricketTeamCheckboxBinding
 import com.meilluer.glanceables.databinding.ItemFootballMatchBinding
 import com.meilluer.glanceables.databinding.ItemTeamCheckboxBinding
 import com.meilluer.glanceables.debug.AppLogger
@@ -40,7 +51,9 @@ import com.meilluer.glanceables.pdf.TravelPdfExtractor
 import com.meilluer.glanceables.repository.FootballRepository
 import com.meilluer.glanceables.repository.FootballResult
 import com.meilluer.glanceables.repository.WeatherRepository
+import com.meilluer.glanceables.scraper.CricbuzzScraper
 import com.meilluer.glanceables.storage.PreferencesManager
+import com.meilluer.glanceables.sync.CricketSyncWorker
 import com.meilluer.glanceables.sync.WearableDataSender
 import com.meilluer.glanceables.sync.WeatherSyncWorker
 import kotlinx.coroutines.Dispatchers
@@ -63,6 +76,19 @@ class MainActivity : AppCompatActivity() {
     private val footballRepository = FootballRepository()
     private var currentFootballMatches: List<FootballMatch> = emptyList()
     private var currentIsUpcoming: Boolean = false
+
+    // Cricket
+    private val cricbuzzScraper = CricbuzzScraper()
+    private var currentCricketMatches: List<CricketMatch> = emptyList()
+    private val cricketHandler = Handler(Looper.getMainLooper())
+    private val cricket6MinRunnable = object : Runnable {
+        override fun run() {
+            if (prefs.getFollowedCricketTeams().isNotEmpty()) {
+                fetchCricketData()
+            }
+            cricketHandler.postDelayed(this, 6 * 60 * 1000L)
+        }
+    }
 
     private val pdfPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -89,11 +115,27 @@ class MainActivity : AppCompatActivity() {
         setupUi()
         setupTravelUi()
         setupFootballUi()
+        setupCricketUi()
         loadCachedData()
         loadStoredTravelInfo()
         loadStoredFootballInfo()
+        loadStoredCricketInfo()
+
+        // Start background 6-minute cricket sync loop
+        CricketSyncWorker.startPeriodic6MinSync(this)
 
         AppLogger.i("MainActivity", "Glanceables application initialized")
+    }
+
+    override fun onResume() {
+        super.onResume()
+        cricketHandler.removeCallbacks(cricket6MinRunnable)
+        cricketHandler.postDelayed(cricket6MinRunnable, 6 * 60 * 1000L)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        cricketHandler.removeCallbacks(cricket6MinRunnable)
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -792,5 +834,242 @@ class MainActivity : AppCompatActivity() {
             AppLogger.i("MainActivity", "Pushed football match to watch: ${match.homeTeam.name} vs ${match.awayTeam.name} (upcoming=$currentIsUpcoming)")
             Toast.makeText(this@MainActivity, getString(R.string.football_sent_to_watch), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    // ── Cricket Live Scores (Cricbuzz Scraper) ───────────────────────────────
+
+    private fun setupCricketUi() {
+        binding.btnSelectCricketTeams.setOnClickListener {
+            showCricketTeamSelectorDialog()
+        }
+
+        binding.btnFetchCricket.setOnClickListener {
+            fetchCricketData()
+        }
+
+        binding.btnSendCricketToWatch.setOnClickListener {
+            pushCricketToWatch()
+        }
+    }
+
+    private fun loadStoredCricketInfo() {
+        updateFollowedCricketTeamsChips()
+        if (prefs.getFollowedCricketTeams().isNotEmpty()) {
+            fetchCricketData()
+        }
+    }
+
+    private fun updateFollowedCricketTeamsChips() {
+        binding.chipGroupFollowedCricketTeams.removeAllViews()
+        val followed = prefs.getFollowedCricketTeams()
+        if (followed.isEmpty()) {
+            binding.textNoCricketTeamsFollowed.visibility = View.VISIBLE
+        } else {
+            binding.textNoCricketTeamsFollowed.visibility = View.GONE
+            for (team in followed) {
+                val chip = Chip(this).apply {
+                    text = "${team.name} (${team.shortName})"
+                    isCloseIconVisible = true
+                    setOnCloseIconClickListener {
+                        prefs.removeFollowedCricketTeam(team.shortName)
+                        updateFollowedCricketTeamsChips()
+                        if (prefs.getFollowedCricketTeams().isNotEmpty()) {
+                            fetchCricketData()
+                        } else {
+                            currentCricketMatches = emptyList()
+                            binding.layoutCricketMatches.removeAllViews()
+                            binding.textNoCricketMatches.visibility = View.GONE
+                        }
+                    }
+                }
+                binding.chipGroupFollowedCricketTeams.addView(chip)
+            }
+        }
+    }
+
+    private fun showCricketTeamSelectorDialog() {
+        val dialogBinding = DialogCricketTeamSelectorBinding.inflate(layoutInflater)
+        val tempFollowed = prefs.getFollowedCricketTeams().toMutableList()
+        var currentCategory = "ALL"
+        var currentSearch = ""
+
+        fun refreshList() {
+            dialogBinding.layoutCricketTeamsList.removeAllViews()
+            val filtered = CricketTeamCatalog.ALL_TEAMS.filter { team ->
+                val categoryMatch = when (currentCategory) {
+                    "National" -> !team.isLeague
+                    "League" -> team.isLeague
+                    else -> true
+                }
+                val searchMatch = if (currentSearch.isBlank()) true else {
+                    team.name.contains(currentSearch, ignoreCase = true) ||
+                            team.shortName.contains(currentSearch, ignoreCase = true) ||
+                            team.leagueOrCategory.contains(currentSearch, ignoreCase = true)
+                }
+                categoryMatch && searchMatch
+            }
+
+            for (team in filtered) {
+                val rowBinding = ItemCricketTeamCheckboxBinding.inflate(layoutInflater, dialogBinding.layoutCricketTeamsList, false)
+                rowBinding.checkboxCricketTeam.text = "${team.name} (${team.shortName})"
+                rowBinding.textTeamCategory.text = team.leagueOrCategory
+                rowBinding.checkboxCricketTeam.isChecked = tempFollowed.any {
+                    it.shortName.equals(team.shortName, ignoreCase = true)
+                }
+
+                rowBinding.checkboxCricketTeam.setOnCheckedChangeListener { _, isChecked ->
+                    if (isChecked) {
+                        if (tempFollowed.none { it.shortName.equals(team.shortName, ignoreCase = true) }) {
+                            tempFollowed.add(
+                                FollowedCricketTeam(
+                                    name = team.name,
+                                    shortName = team.shortName,
+                                    category = team.leagueOrCategory
+                                )
+                            )
+                        }
+                    } else {
+                        tempFollowed.removeAll { it.shortName.equals(team.shortName, ignoreCase = true) }
+                    }
+                }
+                dialogBinding.layoutCricketTeamsList.addView(rowBinding.root)
+            }
+        }
+
+        refreshList()
+
+        dialogBinding.editSearchCricketTeam.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                currentSearch = s?.toString()?.trim().orEmpty()
+                refreshList()
+            }
+            override fun afterTextChanged(s: Editable?) {}
+        })
+
+        dialogBinding.chipGroupCricketCategory.setOnCheckedStateChangeListener { _, checkedIds ->
+            currentCategory = when {
+                checkedIds.contains(R.id.chipCategoryNational) -> "National"
+                checkedIds.contains(R.id.chipCategoryLeague) -> "League"
+                else -> "ALL"
+            }
+            refreshList()
+        }
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.select_cricket_teams_title)
+            .setView(dialogBinding.root)
+            .setPositiveButton(R.string.save_teams) { _, _ ->
+                prefs.setFollowedCricketTeams(tempFollowed)
+                updateFollowedCricketTeamsChips()
+                if (tempFollowed.isNotEmpty()) {
+                    fetchCricketData()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun fetchCricketData() {
+        val followed = prefs.getFollowedCricketTeams()
+        if (followed.isEmpty()) {
+            Toast.makeText(this, getString(R.string.no_cricket_teams_followed), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        binding.cricketProgressBar.visibility = View.VISIBLE
+        binding.btnFetchCricket.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                AppLogger.i("MainActivity", "Scraping Cricbuzz for ${followed.size} followed cricket teams")
+                val matches = withContext(Dispatchers.IO) {
+                    cricbuzzScraper.getMatchesForFollowedTeams(followed)
+                }
+
+                currentCricketMatches = matches
+                if (matches.isNotEmpty()) {
+                    binding.textNoCricketMatches.visibility = View.GONE
+                    displayCricketMatches(matches)
+                    wearableSender.sendCricketDataToWatch(matches.first())
+                    AppLogger.i("MainActivity", "Cricket fetch complete: ${matches.size} matches found")
+                } else {
+                    binding.layoutCricketMatches.removeAllViews()
+                    binding.textNoCricketMatches.visibility = View.VISIBLE
+                    AppLogger.d("MainActivity", "No Cricbuzz matches found matching followed teams")
+                }
+            } catch (e: Exception) {
+                AppLogger.e("MainActivity", "Cricket scrape error: ${e.message}", e)
+                Toast.makeText(this@MainActivity, "Cricket error: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                binding.cricketProgressBar.visibility = View.GONE
+                binding.btnFetchCricket.isEnabled = true
+            }
+        }
+    }
+
+    private fun displayCricketMatches(matches: List<CricketMatch>) {
+        binding.layoutCricketMatches.removeAllViews()
+        for (match in matches) {
+            val itemBinding = ItemCricketMatchBinding.inflate(layoutInflater, binding.layoutCricketMatches, false)
+
+            itemBinding.textCricketSeries.text = match.seriesName.ifBlank { "Cricket Match" }
+            itemBinding.textCricketTitle.text = match.title
+
+            val badgeText = when {
+                match.isLive -> "LIVE"
+                match.status.contains("Break", ignoreCase = true) -> "INNINGS BREAK"
+                match.status.contains("won", ignoreCase = true) -> "RESULT"
+                match.status.contains("opt to", ignoreCase = true) -> "LIVE"
+                else -> "SCHEDULED"
+            }
+            itemBinding.textCricketStatusBadge.text = badgeText
+
+            itemBinding.textTeam1Name.text = match.team1Short.ifBlank { match.team1 }
+            itemBinding.textTeam1Score.text = match.team1Score.ifBlank { "-" }
+
+            itemBinding.textTeam2Name.text = match.team2Short.ifBlank { match.team2 }
+            itemBinding.textTeam2Score.text = match.team2Score.ifBlank { "-" }
+
+            // CRR badge
+            if (match.crr.isNotBlank()) {
+                itemBinding.textCrr.text = "CRR: ${match.crr}"
+                itemBinding.textCrr.visibility = View.VISIBLE
+            } else {
+                itemBinding.textCrr.visibility = View.GONE
+            }
+
+            // RRR badge (only if available)
+            if (match.rrr.isNotBlank()) {
+                itemBinding.textRrr.text = "RRR: ${match.rrr}"
+                itemBinding.textRrr.visibility = View.VISIBLE
+            } else {
+                itemBinding.textRrr.visibility = View.GONE
+            }
+
+            if (match.crr.isBlank() && match.rrr.isBlank()) {
+                itemBinding.layoutRunRates.visibility = View.GONE
+            } else {
+                itemBinding.layoutRunRates.visibility = View.VISIBLE
+            }
+
+            itemBinding.textCricketStatus.text = match.status.ifBlank { "In Progress" }
+
+            binding.layoutCricketMatches.addView(itemBinding.root)
+        }
+    }
+
+    private fun pushCricketToWatch() {
+        if (currentCricketMatches.isEmpty()) {
+            Toast.makeText(this, "No cricket match data to send", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val match = currentCricketMatches.first()
+        lifecycleScope.launch {
+            wearableSender.sendCricketDataToWatch(match)
+            AppLogger.i("MainActivity", "Manually pushed cricket score to watch: ${match.getComplicationSummary()}")
+            Toast.makeText(this@MainActivity, getString(R.string.cricket_sent_to_watch), Toast.LENGTH_SHORT).show()
+        }
+    }
     }
 }

@@ -740,6 +740,155 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <!-- Cricket Scores Card (Cricbuzz Scraper) -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardCricket"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="2dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/cricket_section_title"
+                        android:textAppearance="?attr/textAppearanceHeadline6"
+                        android:layout_marginBottom="4dp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/cricket_section_subtitle"
+                        android:textAppearance="?attr/textAppearanceCaption"
+                        android:layout_marginBottom="12dp"
+                        android:textColor="?android:attr/textColorSecondary" />
+
+                    <!-- Followed Cricket Teams Section -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/followed_cricket_teams_label"
+                        android:textAppearance="?attr/textAppearanceOverline"
+                        android:textColor="?attr/colorPrimary"
+                        android:layout_marginBottom="8dp" />
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chipGroupFollowedCricketTeams"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/textNoCricketTeamsFollowed"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/no_cricket_teams_followed"
+                        android:textAppearance="?attr/textAppearanceBody2"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:layout_marginBottom="12dp" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSelectCricketTeams"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:text="@string/btn_select_cricket_teams"
+                        app:icon="@android:drawable/ic_menu_add" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="?android:attr/listDivider"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- Matches Section Header with 6-min sync indicator -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="8dp">
+
+                        <TextView
+                            android:id="@+id/textCricketSectionHeader"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/cricket_matches_header"
+                            android:textAppearance="?attr/textAppearanceOverline"
+                            android:textColor="?attr/colorPrimary" />
+
+                        <TextView
+                            android:id="@+id/textCricketAutoSyncBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/cricket_auto_sync_badge"
+                            android:textAppearance="?attr/textAppearanceCaption"
+                            android:textColor="#2E7D32"
+                            android:textStyle="bold"
+                            android:paddingStart="8dp"
+                            android:paddingEnd="8dp"
+                            android:paddingTop="2dp"
+                            android:paddingBottom="2dp"
+                            android:background="@drawable/bg_match_status" />
+                    </LinearLayout>
+
+                    <!-- Loading indicator -->
+                    <com.google.android.material.progressindicator.LinearProgressIndicator
+                        android:id="@+id/cricketProgressBar"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="12dp"
+                        android:indeterminate="true"
+                        android:visibility="gone" />
+
+                    <!-- Match items container -->
+                    <LinearLayout
+                        android:id="@+id/layoutCricketMatches"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <!-- Empty state -->
+                    <TextView
+                        android:id="@+id/textNoCricketMatches"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/no_cricket_matches_found"
+                        android:textAppearance="?attr/textAppearanceBody2"
+                        android:textColor="?android:attr/textColorSecondary"
+                        android:layout_marginBottom="12dp"
+                        android:visibility="gone" />
+
+                    <!-- Action Buttons -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnFetchCricket"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="@string/btn_fetch_cricket"
+                        app:icon="@android:drawable/ic_menu_rotate" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSendCricketToWatch"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_send_cricket_to_watch" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
     </ScrollView>
 

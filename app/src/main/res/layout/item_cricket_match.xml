@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- Top Header: Series & Status Badge -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <TextView
+                android:id="@+id/textCricketSeries"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textAppearance="?attr/textAppearanceCaption"
+                android:textColor="?attr/colorPrimary"
+                android:textStyle="bold"
+                android:maxLines="1"
+                android:ellipsize="end"
+                tools:text="India tour of New Zealand 2026" />
+
+            <TextView
+                android:id="@+id/textCricketStatusBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceCaption"
+                android:textStyle="bold"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:background="@drawable/bg_match_status"
+                android:textColor="?android:attr/textColorPrimary"
+                tools:text="LIVE" />
+        </LinearLayout>
+
+        <!-- Match Title: e.g. "IND vs NZ, 5th ODI" -->
+        <TextView
+            android:id="@+id/textCricketTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceSubtitle1"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            tools:text="India vs New Zealand" />
+
+        <!-- Scores Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="8dp">
+
+            <!-- Team 1 Score -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/textTeam1Name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceBody2"
+                    android:textStyle="bold"
+                    tools:text="IND" />
+
+                <TextView
+                    android:id="@+id/textTeam1Score"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceHeadline6"
+                    android:textColor="?attr/colorPrimary"
+                    tools:text="209 (42.1)" />
+            </LinearLayout>
+
+            <!-- Team 2 Score -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="end">
+
+                <TextView
+                    android:id="@+id/textTeam2Name"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceBody2"
+                    android:textStyle="bold"
+                    tools:text="NZ" />
+
+                <TextView
+                    android:id="@+id/textTeam2Score"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textAppearance="?attr/textAppearanceHeadline6"
+                    android:textColor="?attr/colorPrimary"
+                    tools:text="164/2 (28.4)" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Current Run Rate (CRR) & Required Run Rate (RRR) Badges -->
+        <LinearLayout
+            android:id="@+id/layoutRunRates"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="6dp">
+
+            <!-- CRR Badge -->
+            <TextView
+                android:id="@+id/textCrr"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceCaption"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:background="@drawable/bg_match_status"
+                android:textColor="#2E7D32"
+                android:layout_marginEnd="8dp"
+                tools:text="CRR: 5.72" />
+
+            <!-- RRR Badge -->
+            <TextView
+                android:id="@+id/textRrr"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceCaption"
+                android:textStyle="bold"
+                android:fontFamily="monospace"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="3dp"
+                android:paddingBottom="3dp"
+                android:background="@drawable/bg_match_status"
+                android:textColor="#C62828"
+                tools:text="RRR: 6.20" />
+
+        </LinearLayout>
+
+        <!-- Match Status / Result Line -->
+        <TextView
+            android:id="@+id/textCricketStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?attr/textAppearanceCaption"
+            android:textColor="?android:attr/textColorSecondary"
+            tools:text="Australia opt to bowl • Need 45 runs in 38 balls" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
+import com.meilluer.glanceables.data.CricketMatch
 import com.meilluer.glanceables.data.FootballMatch
 import com.meilluer.glanceables.data.TravelInfo
 import com.meilluer.glanceables.data.WeatherData
@@ -57,6 +58,23 @@ class WearableDataSender(private val context: Context) {
         const val KEY_FOOTBALL_IS_UPCOMING = "football_is_upcoming"
         const val KEY_FOOTBALL_SUMMARY = "football_summary"
         const val KEY_FOOTBALL_LAST_UPDATED = "football_last_updated"
+
+        // Cricket Data map keys
+        const val CRICKET_DATA_PATH = "/cricket_data"
+        const val KEY_CRICKET_TITLE = "cricket_title"
+        const val KEY_CRICKET_SERIES = "cricket_series"
+        const val KEY_CRICKET_TEAM1 = "cricket_team1"
+        const val KEY_CRICKET_TEAM2 = "cricket_team2"
+        const val KEY_CRICKET_TEAM1_SCORE = "cricket_team1_score"
+        const val KEY_CRICKET_TEAM2_SCORE = "cricket_team2_score"
+        const val KEY_CRICKET_CURRENT_BATTING = "cricket_current_batting"
+        const val KEY_CRICKET_LIVE_SCORE = "cricket_live_score"
+        const val KEY_CRICKET_CRR = "cricket_crr"
+        const val KEY_CRICKET_RRR = "cricket_rrr"
+        const val KEY_CRICKET_STATUS = "cricket_status"
+        const val KEY_CRICKET_SUMMARY = "cricket_summary"
+        const val KEY_CRICKET_IS_LIVE = "cricket_is_live"
+        const val KEY_CRICKET_LAST_UPDATED = "cricket_last_updated"
     }
 
     /**
@@ -169,6 +187,43 @@ class WearableDataSender(private val context: Context) {
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send football data to watch", e)
                 AppLogger.w(TAG, "Failed to send football data to watch: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Push cricket live match info (score, CRR, RRR, status) to Wear OS device complication.
+     */
+    suspend fun sendCricketDataToWatch(match: CricketMatch) {
+        withContext(Dispatchers.IO) {
+            try {
+                val summary = match.getComplicationSummary()
+
+                val putDataMapRequest = PutDataMapRequest.create(CRICKET_DATA_PATH).apply {
+                    dataMap.putString(KEY_CRICKET_TITLE, match.title)
+                    dataMap.putString(KEY_CRICKET_SERIES, match.seriesName)
+                    dataMap.putString(KEY_CRICKET_TEAM1, match.team1Short.ifBlank { match.team1 })
+                    dataMap.putString(KEY_CRICKET_TEAM2, match.team2Short.ifBlank { match.team2 })
+                    dataMap.putString(KEY_CRICKET_TEAM1_SCORE, match.team1Score)
+                    dataMap.putString(KEY_CRICKET_TEAM2_SCORE, match.team2Score)
+                    dataMap.putString(KEY_CRICKET_CURRENT_BATTING, match.currentBatting)
+                    dataMap.putString(KEY_CRICKET_LIVE_SCORE, match.liveScore)
+                    dataMap.putString(KEY_CRICKET_CRR, match.crr)
+                    dataMap.putString(KEY_CRICKET_RRR, match.rrr)
+                    dataMap.putString(KEY_CRICKET_STATUS, match.status)
+                    dataMap.putString(KEY_CRICKET_SUMMARY, summary)
+                    dataMap.putBoolean(KEY_CRICKET_IS_LIVE, match.isLive)
+                    dataMap.putLong(KEY_CRICKET_LAST_UPDATED, System.currentTimeMillis())
+                }
+
+                val putDataRequest = putDataMapRequest.asPutDataRequest().setUrgent()
+                val dataClient = Wearable.getDataClient(context)
+                Tasks.await(dataClient.putDataItem(putDataRequest))
+                Log.d(TAG, "Cricket data sent to watch: $summary")
+                AppLogger.d(TAG, "Cricket data sent to watch: $summary")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send cricket data to watch", e)
+                AppLogger.w(TAG, "Failed to send cricket data to watch: ${e.message}")
             }
         }
     }

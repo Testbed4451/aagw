@@ -76,4 +76,22 @@
     <string name="btn_dump_logcat">Dump System Logcat</string>
     <string name="btn_close_logs">Close</string>
     <string name="menu_debug_logs">Debug Logs</string>
+
+    <!-- Cricket Scores (Cricbuzz Scraper) -->
+    <string name="cricket_section_title">Cricket Live Scores (Glanceable)</string>
+    <string name="cricket_section_subtitle">Follow National &amp; League teams. Shows live scores, CRR &amp; RRR scraped from Cricbuzz. Updates every 6 minutes on your watch complication.</string>
+    <string name="followed_cricket_teams_label">FOLLOWED CRICKET TEAMS</string>
+    <string name="btn_select_cricket_teams">Select Cricket Teams</string>
+    <string name="no_cricket_teams_followed">No cricket teams selected. Tap \"Select Cricket Teams\" to follow your teams.</string>
+    <string name="cricket_matches_header">CRICKET MATCHES</string>
+    <string name="no_cricket_matches_found">No live or scheduled matches found for followed teams on Cricbuzz.</string>
+    <string name="btn_fetch_cricket">Refresh Cricket Scores</string>
+    <string name="btn_send_cricket_to_watch">Push Cricket to Watch</string>
+    <string name="cricket_sent_to_watch">Cricket score pushed to watch complication</string>
+    <string name="cricket_auto_sync_badge">⚡ Updates every 6 mins</string>
+    <string name="select_cricket_teams_title">Select Cricket Teams</string>
+    <string name="hint_search_cricket_teams">Search team or league (e.g. India, CSK, MI)…</string>
+    <string name="category_all">ALL</string>
+    <string name="category_national">NATIONAL</string>
+    <string name="category_league">LEAGUE / T20</string>
 </resources>
